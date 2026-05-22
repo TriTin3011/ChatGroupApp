@@ -9,14 +9,17 @@ const int DefaultPort = 5000;
 var port = ReadPort(args);
 var clients = new ConcurrentDictionary<TcpClient, ClientState>();
 var listener = new TcpListener(IPAddress.Any, port);
+var fileListener = new TcpListener(IPAddress.Any, port + 1);
 
 Console.OutputEncoding = Encoding.UTF8;
 Console.Title = "ChatGroupApp Server";
 
 listener.Start();
+fileListener.Start();
 
 Console.WriteLine("=== ChatGroupApp Server ===");
 Console.WriteLine($"Server running at port: {port}");
+Console.WriteLine($"File transfer running at port: {port + 1}");
 Console.WriteLine("IP server:");
 foreach (var ip in GetLocalIPv4Addresses())
 {
@@ -32,6 +35,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 {
     eventArgs.Cancel = true;
     listener.Stop();
+    fileListener.Stop();
     foreach (var client in clients.Keys)
     {
         client.Close();
@@ -40,6 +44,19 @@ Console.CancelKeyPress += (_, eventArgs) =>
 
 try
 {
+    _ = Task.Run(async () =>
+    {
+        try
+        {
+            while (true)
+            {
+                var fileClient = await fileListener.AcceptTcpClientAsync();
+                _ = HandleFileTransferAsync(fileClient);
+            }
+        }
+        catch (Exception) { }
+    });
+
     while (true)
     {
         var tcpClient = await listener.AcceptTcpClientAsync();
@@ -196,6 +213,93 @@ static IEnumerable<IPAddress> GetLocalIPv4Addresses()
         .Select(address => address.Address)
         .Where(address => address.AddressFamily == AddressFamily.InterNetwork && !IPAddress.IsLoopback(address))
         .DefaultIfEmpty(IPAddress.Loopback);
+}
+
+static async Task<string> ReadLineStrictAsync(Stream stream)
+{
+    var bytes = new List<byte>();
+    var buffer = new byte[1];
+    while (await stream.ReadAsync(buffer) > 0)
+    {
+        if (buffer[0] == '\n') break;
+        if (buffer[0] != '\r') bytes.Add(buffer[0]);
+    }
+    return Encoding.UTF8.GetString(bytes.ToArray());
+}
+
+async Task HandleFileTransferAsync(TcpClient tcpClient)
+{
+    try
+    {
+        await using var stream = tcpClient.GetStream();
+        var header = await ReadLineStrictAsync(stream);
+        if (string.IsNullOrEmpty(header)) return;
+
+        var parts = header.Split('|');
+        if (parts[0] == "UPLOAD" && parts.Length >= 6)
+        {
+            var senderName = parts[1];
+            var fileId = parts[2];
+            var fileName = parts[3];
+            var sizeStr = parts[4];
+            var isImage = parts[5];
+
+            if (!long.TryParse(sizeStr, out var size)) return;
+
+            Directory.CreateDirectory("uploads");
+            var filePath = Path.Combine("uploads", fileId);
+            
+            await using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
+            {
+                var buffer = new byte[81920];
+                long totalRead = 0;
+                int read;
+                while (totalRead < size && (read = await stream.ReadAsync(buffer, 0, (int)Math.Min(buffer.Length, size - totalRead))) > 0)
+                {
+                    await fileStream.WriteAsync(buffer, 0, read);
+                    totalRead += read;
+                }
+            }
+
+            Console.WriteLine($"File received: {fileName} ({size} bytes) from {senderName}");
+            
+            // Broadcast file message to chat clients
+            // FILE|sender|fileName|fileId|size|isImage
+            await BroadcastAsync($"FILE|{senderName}|{fileName}|{fileId}|{size}|{isImage}");
+            
+            // Send back an OK response
+            var response = Encoding.UTF8.GetBytes("OK\n");
+            await stream.WriteAsync(response);
+        }
+        else if (parts[0] == "DOWNLOAD" && parts.Length >= 2)
+        {
+            var fileId = parts[1];
+            var filePath = Path.Combine("uploads", fileId);
+            
+            if (File.Exists(filePath))
+            {
+                var fileInfo = new FileInfo(filePath);
+                var headerBytes = Encoding.UTF8.GetBytes($"OK|{fileInfo.Length}\n");
+                await stream.WriteAsync(headerBytes);
+
+                await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+                await fileStream.CopyToAsync(stream);
+            }
+            else
+            {
+                var headerBytes = Encoding.UTF8.GetBytes("NOTFOUND\n");
+                await stream.WriteAsync(headerBytes);
+            }
+        }
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"File transfer error: {ex.Message}");
+    }
+    finally
+    {
+        tcpClient.Close();
+    }
 }
 
 sealed record ClientState(string Name, StreamWriter Writer)

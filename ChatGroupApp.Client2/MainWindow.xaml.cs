@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Sockets;
@@ -11,7 +11,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Microsoft.Win32;
 
-namespace ChatGroupApp.Client;
+namespace ChatGroupApp.Client2;
 
 public partial class MainWindow : Window
 {
@@ -54,7 +54,7 @@ public partial class MainWindow : Window
     private StreamReader? _reader;
     private StreamWriter? _writer;
     private CancellationTokenSource? _receiveCancellation;
-    
+
     private string? _previewFilePath;
     private bool _isPreviewImage;
 
@@ -253,7 +253,7 @@ public partial class MainWindow : Window
         var fileId = Guid.NewGuid().ToString("N");
         var fileInfo = new FileInfo(filePath);
         var size = fileInfo.Length;
-        
+
         var message = new ChatMessage("Bạn", fileName, MessageKind.Me)
         {
             IsFile = true,
@@ -263,7 +263,7 @@ public partial class MainWindow : Window
             FileSize = size,
             IsTransferring = true
         };
-        
+
         _messages.Add(message);
         MessagesListBox.ScrollIntoView(message);
 
@@ -307,7 +307,7 @@ public partial class MainWindow : Window
     private async Task DownloadFileAsync(ChatMessage msg)
     {
         if (msg.FileId == null) return;
-        
+
         msg.IsTransferring = true;
         msg.TransferProgress = 0;
 
@@ -351,9 +351,9 @@ public partial class MainWindow : Window
                         msg.TransferProgress = (double)totalRead / size * 100;
                     }
                 }
-                
+
                 msg.FilePath = localPath;
-                
+
                 if (!msg.IsImage)
                 {
                     Dispatcher.Invoke(() => MessageBox.Show($"Đã tải xong: {localPath}", "Tải file", MessageBoxButton.OK, MessageBoxImage.Information));
@@ -410,7 +410,7 @@ public partial class MainWindow : Window
                 var sender = parts[1];
                 var fileName = parts[2];
                 var fileId = parts[3];
-                
+
                 if (_messages.Any(m => m.FileId == fileId))
                 {
                     break;
@@ -418,7 +418,7 @@ public partial class MainWindow : Window
 
                 _ = long.TryParse(parts[4], out var size);
                 _ = bool.TryParse(parts[5], out var isImage);
-                
+
                 var msg = new ChatMessage(sender, fileName, MessageKind.Other)
                 {
                     IsFile = true,
@@ -429,7 +429,7 @@ public partial class MainWindow : Window
                 _messages.Add(msg);
                 EmptyChatHint.Visibility = Visibility.Collapsed;
                 MessagesListBox.ScrollIntoView(msg);
-                
+
                 if (isImage)
                 {
                     _ = DownloadFileAsync(msg);
