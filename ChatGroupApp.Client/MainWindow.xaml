@@ -213,21 +213,21 @@
                              Grid.Column="0"
                              Style="{StaticResource CuteTextBox}"
                              Margin="0,0,10,0"
-                             Text="IP"
+                             Text="IP Address"
                              ToolTip="IP Server" />
 
                     <TextBox x:Name="PortTextBox"
                              Grid.Column="1"
                              Style="{StaticResource CuteTextBox}"
                              Margin="0,0,10,0"
-                             Text="5000"
+                             Text="Port"
                              ToolTip="Port" />
 
                     <TextBox x:Name="UserNameTextBox"
                              Grid.Column="2"
                              Style="{StaticResource CuteTextBox}"
                              Margin="0,0,10,0"
-                             Text="Student"
+                             Text="Name"
                              ToolTip="Tên của bạn" />
 
                     <Button x:Name="ConnectButton"

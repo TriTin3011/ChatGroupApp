@@ -162,7 +162,7 @@ static int ReadPort(string[] args)
         return argPort;
     }
 
-    Console.Write($"Port server [{DefaultPort}]: ");
+    Console.Write($"Enter Port server : ");
     var input = Console.ReadLine();
     if (int.TryParse(input, out var typedPort) && IsValidPort(typedPort))
     {
