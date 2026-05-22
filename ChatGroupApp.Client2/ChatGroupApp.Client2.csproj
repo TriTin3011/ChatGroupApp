@@ -2,16 +2,11 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows7.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
-    <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
   </PropertyGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Emoji.Wpf" Version="0.3.4" />
-  </ItemGroup>
 
   <ItemGroup>
     <Resource Include="Assets\AppIcon.ico" />

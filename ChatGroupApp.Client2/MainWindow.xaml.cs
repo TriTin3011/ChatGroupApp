@@ -1,5 +1,4 @@
-using Microsoft.Win32;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Net.Sockets;
@@ -7,12 +6,12 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using Microsoft.Win32;
 
-namespace ChatGroupApp.Client;
+namespace ChatGroupApp.Client2;
 
 public partial class MainWindow : Window
 {
@@ -58,9 +57,6 @@ public partial class MainWindow : Window
 
     private string? _previewFilePath;
     private bool _isPreviewImage;
-
-    // Giới hạn max size 1GB
-    private const long MaxFileSizeInBytes = 1024L * 1024L * 1024L;
 
     public MainWindow()
     {
@@ -141,11 +137,6 @@ public partial class MainWindow : Window
         EmojiPopup.IsOpen = !EmojiPopup.IsOpen;
     }
 
-    private void AttachButton_Click(object sender, RoutedEventArgs e)
-    {
-        AttachPopup.IsOpen = !AttachPopup.IsOpen;
-    }
-
     private void EmojiTab_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string groupName })
@@ -188,9 +179,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SendImageOption_Click(object sender, RoutedEventArgs e)
+    private void ImageButton_Click(object sender, RoutedEventArgs e)
     {
-        AttachPopup.IsOpen = false;
         var openFileDialog = new OpenFileDialog
         {
             Filter = "Image files (*.png;*.jpeg;*.jpg)|*.png;*.jpeg;*.jpg|All files (*.*)|*.*",
@@ -202,9 +192,8 @@ public partial class MainWindow : Window
         }
     }
 
-    private void SendFileOption_Click(object sender, RoutedEventArgs e)
+    private void FileButton_Click(object sender, RoutedEventArgs e)
     {
-        AttachPopup.IsOpen = false;
         var openFileDialog = new OpenFileDialog
         {
             Filter = "All files (*.*)|*.*",
@@ -226,13 +215,6 @@ public partial class MainWindow : Window
 
     private void SetPreview(string filePath, bool isImage)
     {
-        var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length > MaxFileSizeInBytes)
-        {
-            MessageBox.Show("Dung lượng đính kèm vượt quá 1GB!\nVui lòng chọn file nhỏ hơn.", "Lỗi dung lượng", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
-
         _previewFilePath = filePath;
         _isPreviewImage = isImage;
         PreviewPanel.Visibility = Visibility.Visible;
@@ -255,23 +237,6 @@ public partial class MainWindow : Window
             PreviewImage.Visibility = Visibility.Collapsed;
             PreviewFileText.Text = Path.GetFileName(filePath);
         }
-    }
-
-    // Logic click vào Image để mở to lên
-    private void ViewImage_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is Button btn && btn.Tag is ImageSource source)
-        {
-            FullSizeImage.Source = source;
-            ImageViewerOverlay.Visibility = Visibility.Visible;
-        }
-    }
-
-    // Đóng popup xem ảnh
-    private void CloseViewer_Click(object sender, RoutedEventArgs e)
-    {
-        ImageViewerOverlay.Visibility = Visibility.Collapsed;
-        FullSizeImage.Source = null;
     }
 
     private void DownloadFile_Click(object sender, RoutedEventArgs e)
@@ -315,22 +280,19 @@ public partial class MainWindow : Window
             var header = Encoding.UTF8.GetBytes($"UPLOAD|{userName}|{fileId}|{fileName}|{size}|{isImage}\n");
             await stream.WriteAsync(header);
 
-            // Bọc logic loop truyền byte nặng vào Task.Run để không bị block UI Thread
-            await Task.Run(async () =>
+            await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
+            var buffer = new byte[81920];
+            long totalSent = 0;
+            int read;
+            while ((read = await fileStream.ReadAsync(buffer)) > 0)
             {
-                await using var fileStream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true);
-                var buffer = new byte[81920];
-                long totalSent = 0;
-                int read;
-                while ((read = await fileStream.ReadAsync(buffer)) > 0)
-                {
-                    await stream.WriteAsync(buffer, 0, read);
-                    totalSent += read;
-                    message.TransferProgress = (double)totalSent / size * 100;
-                }
-                var responseBytes = new byte[3];
-                await stream.ReadAsync(responseBytes);
-            });
+                await stream.WriteAsync(buffer, 0, read);
+                totalSent += read;
+                message.TransferProgress = (double)totalSent / size * 100;
+            }
+
+            var responseBytes = new byte[3];
+            await stream.ReadAsync(responseBytes);
         }
         catch (Exception ex)
         {
@@ -377,10 +339,8 @@ public partial class MainWindow : Window
                 var localPath = Path.Combine("downloads", $"{msg.FileId}{ext}");
                 localPath = Path.GetFullPath(localPath);
 
-                // Task.Run để UI được scroll thoải mái
-                await Task.Run(async () =>
+                await using (var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true))
                 {
-                    await using var fileStream = new FileStream(localPath, FileMode.Create, FileAccess.Write, FileShare.None, 81920, true);
                     var buffer = new byte[81920];
                     long totalRead = 0;
                     int read;
@@ -390,7 +350,7 @@ public partial class MainWindow : Window
                         totalRead += read;
                         msg.TransferProgress = (double)totalRead / size * 100;
                     }
-                });
+                }
 
                 msg.FilePath = localPath;
 
@@ -501,8 +461,9 @@ public partial class MainWindow : Window
             var button = new Button
             {
                 Style = (Style)FindResource("EmojiButtonStyle"),
-                // Dùng Emoji.Wpf.TextBlock thay vì nhét text trực tiếp
-                Content = new Emoji.Wpf.TextBlock { Text = emoji, FontSize = 23, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+                Content = emoji,
+                FontFamily = new FontFamily("Segoe UI Emoji"),
+                FontSize = 23,
                 Margin = new Thickness(3),
                 ToolTip = $"Chèn {emoji}"
             };
@@ -535,7 +496,8 @@ public partial class MainWindow : Window
         DisconnectButton.IsEnabled = isConnected;
         MessageTextBox.IsEnabled = isConnected;
         SendButton.IsEnabled = isConnected;
-        AttachButton.IsEnabled = isConnected; // Disable / Enable nút đính kèm (+)
+        ImageButton.IsEnabled = isConnected;
+        FileButton.IsEnabled = isConnected;
     }
 
     private void Disconnect()
