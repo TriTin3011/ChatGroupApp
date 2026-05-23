@@ -23,7 +23,7 @@ public partial class MainWindow : Window
         [
             "\U0001F600", "\U0001F601", "\U0001F602", "\U0001F923", "\U0001F605", "\U0001F60A",
             "\U0001F607", "\U0001F609", "\U0001F60D", "\U0001F618", "\U0001F61C", "\U0001F61D",
-            "\U0001F92A", "\U0001F60E", "\U0001F914", "\U0001F62D", "\U0001F621", "\U0001F634"
+            "\U0001F92A", "\U0001F60E", "\U0001F914", "\U0001F62D", "\U0001F621", "\U0001F634",
         ],
         ["Love"] =
         [
@@ -227,11 +227,11 @@ public partial class MainWindow : Window
     private void SetPreview(string filePath, bool isImage)
     {
         var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length > MaxFileSizeInBytes)
-        {
-            MessageBox.Show("Dung lượng đính kèm vượt quá 1GB!\nVui lòng chọn file nhỏ hơn.", "Lỗi dung lượng", MessageBoxButton.OK, MessageBoxImage.Error);
-            return;
-        }
+        //if (fileInfo.Length > MaxFileSizeInBytes)
+        //{
+        //    MessageBox.Show("Dung lượng đính kèm vượt quá 1GB!\nVui lòng chọn file nhỏ hơn.", "Lỗi dung lượng", MessageBoxButton.OK, MessageBoxImage.Error);
+        //    return;
+        //}
 
         _previewFilePath = filePath;
         _isPreviewImage = isImage;

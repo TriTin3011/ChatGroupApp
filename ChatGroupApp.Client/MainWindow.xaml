@@ -291,6 +291,7 @@
                                                 </Style>
                                             </emoji:TextBlock.Style>
                                         </emoji:TextBlock>
+                                        
 
                                         <Border CornerRadius="8" Margin="0,6,0,0" ClipToBounds="True" MaxHeight="300" Background="#10000000">
                                             <Border.Style>
@@ -350,6 +351,7 @@
                                             <StackPanel Orientation="Horizontal">
                                                 <TextBlock Text="&#x1F4CE;" FontFamily="Segoe UI Emoji" FontSize="24" Margin="0,0,10,0" VerticalAlignment="Center" />
                                                 <TextBlock Text="{Binding Text}" FontSize="14" Foreground="{Binding Foreground}" VerticalAlignment="Center" MaxWidth="250" TextTrimming="CharacterEllipsis" />
+                                            
                                             </StackPanel>
                                         </Border>
 
